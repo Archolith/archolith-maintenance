@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "archolith-maintenance"
+version = "0.1.0"
+description = "Shared background-maintenance substrate (single-leader leasing, leased loop) for archolith projects."
+authors = [{ name = "Charles Harvey", email = "ctharvey@me.com" }]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/archolith_maintenance"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
