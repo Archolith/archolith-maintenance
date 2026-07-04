@@ -2,7 +2,11 @@
 
 ## Overview
 
+`archolith-maintenance` owns shared, domain-agnostic helper surfaces used across Archolith projects.
+
 `SchedulerLeaseStore` implements cross-process single-leader election backed by SQLite. Only one process per `lease_name` holds an active lease at a time; other processes wait, retry, or defer work. A lease is identified by `lease_name`; an owner is `(owner_id, owner_pid)`. Used by the curator worker to guarantee idempotent, non-concurrent maintenance scheduling.
+
+`token_accounting` owns canonical tokenizer selection and fallback token-count policy. Consumers may layer surface-specific semantics around it: `archolith-context` adds structural request framing and gate floors, `archolith-filter` uses it for shrink/truncate budgets, `archolith-bench` uses it for benchmark text/message metrics, and `archolith-mcp-audit` uses it inside its richer audit `TokenCount` reporting shape.
 
 ## Tech Stack
 
@@ -11,6 +15,7 @@
 | Persistence | SQLite 3 (stdlib `sqlite3`) |
 | Concurrency | `threading.Lock` (lazy init guard) |
 | Timing | epoch seconds (float) for expiry; ISO 8601 UTC for timestamps |
+| Token counting | Optional `tiktoken` lazy import with shape-aware stdlib fallback |
 
 ## Data Flow
 
@@ -42,12 +47,23 @@
 ### `SchedulerLeaseStoreProtocol`
 Structural contract (Protocol) for any object implementing the lease store interface. Enables polymorphism and mocking in consumers.
 
+### `token_accounting`
+- **Purpose:** Shared text-token primitive for Archolith projects.
+- **Public API:**
+  - `count_text_tokens(text, encoding="cl100k_base", minimum=0, mode="auto") -> int` — counts via `tiktoken` when available, otherwise falls back to canonical heuristics.
+  - `count_message_content_tokens(messages, minimum=0, mode="auto") -> int` — counts OpenAI-style message content without structural framing.
+  - `token_counts_are_estimated(encoding="cl100k_base", mode="auto") -> bool` — reports whether a count is heuristic-backed.
+  - `estimate_tokens_fallback(text) -> int` — direct fallback estimator for tests and diagnostics.
+  - `looks_code_like(text) -> bool` — fallback signal for code/config-heavy text.
+- **Mode options:** `mode="auto"` preserves default behavior; `mode="fallback"` forces heuristic counts; `mode="tiktoken"` requires tiktoken and raises if unavailable.
+- **Fallback policy:** Prose keeps the historical ~4 chars/token heuristic. Code/config-heavy text uses a more conservative ~3.2 chars/token estimate. Consumers should not duplicate this policy locally.
+
 ## Configuration / Environment Variables
 
-None. The only required input is `db_path` (file path to SQLite database).
+None. The only required lease input is `db_path` (file path to SQLite database). Token accounting has no configuration; callers choose encoding and surface-specific floors/margins.
 
 ## External Dependencies
 
 - **Python 3.11+** (f-strings, match statements, modern type hints).
-- **stdlib only:** `sqlite3`, `socket`, `threading`, `time`, `dataclasses`, `pathlib`, `datetime`.
-- No external package dependencies.
+- **Core runtime:** stdlib modules including `sqlite3`, `socket`, `threading`, `time`, `dataclasses`, `pathlib`, `datetime`, `functools`, and `re`.
+- **Optional tokenizer:** `tiktoken` is lazy-imported when available. The package remains installable without it.

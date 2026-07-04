@@ -1,6 +1,6 @@
 # archolith-maintenance — Agent Docs
 
-`archolith-maintenance` is a shared, domain-agnostic background-maintenance substrate providing cross-process single-leader election via SQLite leases. It is consumed by `archolith-context`'s curator worker to ensure only one leader schedules maintenance tasks per lease key; `cth.mcp.memory` will converge onto it at the `cth.memory → archolith.memory` rename. Install via `pip install -e <path>` from a consumer venv.
+`archolith-maintenance` is a shared, domain-agnostic helper substrate for Archolith projects. It currently provides cross-process single-leader election via SQLite leases and canonical token-accounting primitives shared by `archolith-filter`, `archolith-context`, `archolith-bench`, and `archolith-mcp-audit`. Install via `pip install -e <path>` from a consumer venv.
 
 ## Files
 
@@ -10,6 +10,11 @@
 | `data_models.md` | Entities, DTOs, enums, converters, repository reference |
 | `CHANGELOG.md` | Running log of changes, most recent first |
 | `workflows/code_conventions.md` | Language-specific style and formatting rules |
+
+## Shared Helper Surfaces
+
+- `SchedulerLeaseStore` — SQLite-backed single-leader lease store for background workers.
+- `token_accounting` — canonical text token counting, tokenizer selection, and fallback heuristics. Consumer projects may add their own framing, floors, margins, or reporting DTOs, but should not reimplement fallback policy.
 
 ## Maintenance Rules
 
